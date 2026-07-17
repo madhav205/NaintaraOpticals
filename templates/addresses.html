@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Addresses{% endblock %}
+
+{% block extra_style %}
+<style>
+.address-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+.default-badge {
+    background: #198754;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+.field-success {
+    border-color: #198754 !important;
+}
+.field-error {
+    border-color: #dc3545 !important;
+}
+#pincode-msg {
+    font-size: 13px;
+    margin-top: 4px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+    <h2 class="mb-4">📍 Manage Addresses</h2>
+
+    <div class="card address-card p-4 mb-5">
+        <h4 class="mb-3">➕ Add New Address</h4>
+        <form method="POST" id="address-form">
+            {% csrf_token %}
+            <div class="row">
+
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold mb-1">Full Name</label>
+                    <input type="text" name="full_name" id="full_name"
+                        class="form-control" placeholder="Enter full name" required>
+                    <div id="name-msg" class="text-danger" style="font-size:13px;margin-top:4px;"></div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold mb-1">Mobile Number</label>
+                    <input type="text" name="mobile" id="mobile"
+                        class="form-control" placeholder="10-digit mobile number"
+                        maxlength="10" required>
+                    <div id="mobile-msg" class="text-danger" style="font-size:13px;margin-top:4px;"></div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold mb-1">House / Flat No</label>
+                    <input type="text" name="house_no"
+                        class="form-control" placeholder="e.g. 42B, Floor 3" required>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold mb-1">Street / Area</label>
+                    <input type="text" name="street"
+                        class="form-control" placeholder="e.g. MG Road, Sector 15" required>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="fw-bold mb-1">Pincode</label>
+                    <input type="text" name="pincode" id="pincode"
+                        class="form-control" placeholder="6-digit pincode"
+                        maxlength="6" required>
+                    <div id="pincode-msg"></div>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="fw-bold mb-1">City</label>
+                    <input type="text" name="city" id="city"
+                        class="form-control" placeholder="Auto-filled from pincode" required readonly>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="fw-bold mb-1">State</label>
+                    <input type="text" name="state" id="state"
+                        class="form-control" placeholder="Auto-filled from pincode" required readonly>
+                </div>
+
+            </div>
+
+            <button class="btn btn-success" type="submit" id="save-btn">
+                Save Address
+            </button>
+
+        </form>
+    </div>
+
+    <!-- SAVED ADDRESSES -->
+    <h4 class="mb-3">📦 Saved Addresses</h4>
+    <div class="row">
+        {% for address in addresses %}
+        <div class="col-md-6 mb-4">
+            <div class="card address-card p-4 h-100">
+                <div class="d-flex justify-content-between">
+                    <h5>{{ address.full_name }}</h5>
+                    {% if address.is_default %}
+                        <span class="default-badge">Default</span>
+                    {% endif %}
+                </div>
+                <p class="mb-1">{{ address.house_no }}, {{ address.street }}</p>
+                <p class="mb-1">{{ address.city }}, {{ address.state }}</p>
+                <p class="mb-1">{{ address.pincode }}</p>
+                <p>📞 {{ address.mobile }}</p>
+                <div class="mt-2">
+                    <a href="/address/default/{{ address.id }}/" class="btn btn-outline-success btn-sm">Set Default</a>
+                    <a href="/address/delete/{{ address.id }}/" class="btn btn-outline-danger btn-sm">Delete</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="alert alert-warning">No Address Saved Yet 😢</div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<script>
+    // --- PINCODE AUTO FILL ---
+    const pincodeInput = document.getElementById('pincode');
+    const cityInput = document.getElementById('city');
+    const stateInput = document.getElementById('state');
+    const pincodeMsg = document.getElementById('pincode-msg');
+
+    pincodeInput.addEventListener('input', function () {
+        const val = this.value.trim();
+
+        // reset
+        cityInput.value = '';
+        stateInput.value = '';
+        pincodeMsg.textContent = '';
+        pincodeInput.classList.remove('field-success', 'field-error');
+
+        if (!/^\d+$/.test(val)) {
+            pincodeMsg.textContent = '❌ Only numbers allowed';
+            pincodeMsg.className = 'text-danger';
+            pincodeInput.classList.add('field-error');
+            return;
+        }
+
+        if (val.length === 6) {
+            pincodeMsg.textContent = '🔍 Looking up pincode...';
+            pincodeMsg.className = 'text-muted';
+
+            fetch(`https://api.postalpincode.in/pincode/${val}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data[0].Status === 'Success') {
+                        const postOffice = data[0].PostOffice[0];
+                        cityInput.value = postOffice.District;
+                        stateInput.value = postOffice.State;
+                        pincodeMsg.textContent = '✅ Location found!';
+                        pincodeMsg.className = 'text-success';
+                        pincodeInput.classList.add('field-success');
+                    } else {
+                        pincodeMsg.textContent = '❌ Invalid pincode. Please check again.';
+                        pincodeMsg.className = 'text-danger';
+                        pincodeInput.classList.add('field-error');
+                    }
+                })
+                .catch(() => {
+                    pincodeMsg.textContent = '⚠️ Could not fetch. Please enter city & state manually.';
+                    pincodeMsg.className = 'text-warning';
+                    cityInput.removeAttribute('readonly');
+                    stateInput.removeAttribute('readonly');
+                });
+        }
+    });
+
+    // --- MOBILE VALIDATION ---
+    const mobileInput = document.getElementById('mobile');
+    const mobileMsg = document.getElementById('mobile-msg');
+
+    mobileInput.addEventListener('input', function () {
+        const val = this.value.trim();
+        if (!/^\d+$/.test(val)) {
+            mobileMsg.textContent = '❌ Only numbers allowed';
+            mobileInput.classList.add('field-error');
+            mobileInput.classList.remove('field-success');
+        } else if (val.length === 10) {
+            mobileMsg.textContent = '✅ Valid number';
+            mobileMsg.className = 'text-success';
+            mobileInput.classList.add('field-success');
+            mobileInput.classList.remove('field-error');
+        } else {
+            mobileMsg.textContent = `${10 - val.length} more digits needed`;
+            mobileMsg.className = 'text-muted';
+            mobileInput.classList.remove('field-success', 'field-error');
+        }
+    });
+
+    // --- NAME VALIDATION ---
+    const nameInput = document.getElementById('full_name');
+    const nameMsg = document.getElementById('name-msg');
+
+    nameInput.addEventListener('input', function () {
+        const val = this.value.trim();
+        if (/\d/.test(val)) {
+            nameMsg.textContent = '❌ Name cannot contain numbers';
+            nameInput.classList.add('field-error');
+        } else {
+            nameMsg.textContent = '';
+            nameInput.classList.remove('field-error');
+        }
+    });
+
+    // --- FORM SUBMIT VALIDATION ---
+    document.getElementById('address-form').addEventListener('submit', function (e) {
+        const mobile = mobileInput.value.trim();
+        const pincode = pincodeInput.value.trim();
+        const name = nameInput.value.trim();
+
+        if (!/^\d{10}$/.test(mobile)) {
+            e.preventDefault();
+            mobileMsg.textContent = '❌ Enter a valid 10-digit mobile number';
+            mobileMsg.className = 'text-danger';
+            mobileInput.classList.add('field-error');
+        }
+
+        if (!/^\d{6}$/.test(pincode)) {
+            e.preventDefault();
+            pincodeMsg.textContent = '❌ Enter a valid 6-digit pincode';
+            pincodeMsg.className = 'text-danger';
+            pincodeInput.classList.add('field-error');
+        }
+
+        if (/\d/.test(name)) {
+            e.preventDefault();
+            nameMsg.textContent = '❌ Name cannot contain numbers';
+            nameInput.classList.add('field-error');
+        }
+    });
+</script>
+
+{% endblock %}

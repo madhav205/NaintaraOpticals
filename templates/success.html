@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}Order Success 🎉{% endblock %}
+
+{% block extra_style %}
+.success-box {
+    background: white;
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    max-width: 500px;
+    width: 100%;
+}
+.checkmark {
+    font-size: 60px;
+    color: #16a34a;
+}
+{% endblock %}
+
+{% block content %}
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="success-box text-center">
+        <div class="checkmark">✔️</div>
+        <h2 class="fw-bold mt-3">Order Placed Successfully 🎉</h2>
+        <p class="text-muted mt-2">Thank you for shopping with Naintara Opticals 👓</p>
+        <hr>
+        <p><strong>Order ID:</strong> #{{ random_id }}</p>
+        <p class="text-muted">Your order is being processed and will be delivered soon.</p>
+        <div class="mt-4">
+            <a href="/" class="btn btn-dark rounded-pill px-4">🏠 Continue Shopping</a>
+            <a href="/orders/" class="btn btn-outline-primary rounded-pill px-4 ms-2">📦 View Orders</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
